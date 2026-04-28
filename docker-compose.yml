@@ -1,0 +1,51 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: autoangioscore_db
+    environment:
+      POSTGRES_DB: autoangioscore
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: your_secure_password_here
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d autoangioscore"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    restart: unless-stopped
+    networks:
+      - autoangioscore_network
+
+  app:
+    build: .
+    container_name: autoangioscore_app
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: autoangioscore
+      DB_USER: postgres
+      DB_PASSWORD: your_secure_password_here
+      WEIGHTS_REPO: "MesserMMP/syntax-video-weights"
+    ports:
+      - "7860:7860"
+    volumes:
+      - ./assets:/app/assets
+      - ./weights:/app/weights
+      - ./data:/app/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - autoangioscore_network
+
+volumes:
+  postgres_data:
+
+networks:
+  autoangioscore_network:
+    driver: bridge
