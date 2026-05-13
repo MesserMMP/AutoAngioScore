@@ -363,6 +363,48 @@ body::before {
     background: rgba(139, 92, 246, 0.04) !important;
 }
 
+.queue-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    overflow: hidden;
+    border-radius: 16px;
+    box-shadow: var(--shadow-sm);
+}
+
+.queue-table thead th {
+    background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+    color: #ffffff;
+    font-size: 0.875rem;
+    font-weight: 700;
+    text-align: left;
+    padding: 0.9rem 1rem;
+    border-bottom: none;
+}
+
+.queue-table tbody td {
+    background: rgba(255, 255, 255, 0.98);
+    color: var(--text-primary);
+    padding: 0.9rem 1rem;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    vertical-align: top;
+}
+
+.queue-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.queue-table tbody tr:hover td {
+    background: rgba(139, 92, 246, 0.04);
+}
+
+.queue-empty {
+    padding: 1rem;
+    text-align: center;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+}
+
 .status-badge {
     display: inline-flex;
     align-items: center;
@@ -572,13 +614,50 @@ def _status_badge_html(state: str, with_animation: bool = False) -> str:
     return f'<span class="status-badge {config["class"]}{animation_class}">{config["icon"]} {config["text"]}</span>'
 
 
-def _update_status_table(studies, status: str) -> List[List]:
-    """Обновление таблицы со статусами"""
+def _update_status_table(studies, status: str) -> str:
+    """Обновление таблицы со статусами в HTML."""
+    studies = studies or []
+
+    if not studies:
+        return '''
+        <div class="apple-card" style="padding: 1rem; text-align: center;">
+            <div style="color: var(--text-secondary); font-size: 0.875rem;">
+                Очередь пуста
+            </div>
+        </div>
+        '''
+
     badge = _status_badge_html(status, with_animation=(status == "running"))
-    return [
-        [s.get("name", "-"), s.get("description", "-") or "-", len(s.get("files", [])), badge]
-        for s in (studies or [])
-    ]
+    rows_html = []
+    for idx, s in enumerate(studies, 1):
+        rows_html.append(f'''
+            <tr>
+                <td>{idx}</td>
+                <td>{s.get("name", "-")}</td>
+                <td>{s.get("description", "-") or "-"}</td>
+                <td style="text-align: center;">{len(s.get("files", []))}</td>
+                <td style="text-align: center;">{badge}</td>
+            </tr>
+        ''')
+
+    return f'''
+    <div style="overflow-x: auto;">
+        <table class="queue-table">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Исследование</th>
+                    <th>Описание</th>
+                    <th>Файлов</th>
+                    <th>Статус</th>
+                </tr>
+            </thead>
+            <tbody>
+                {''.join(rows_html)}
+            </tbody>
+        </table>
+    </div>
+    '''
 
 
 def _format_results_html(result: Dict[str, Any]) -> str:
@@ -1168,13 +1247,9 @@ def create_ui():
                     gr.HTML('<h3 class="apple-card-title">📋 Очередь исследований</h3>')
                 
                 with gr.Column(elem_classes="apple-card-content"):
-                    queue_table = gr.Dataframe(
-                        headers=["Исследование", "Описание", "Файлов", "Статус"],
-                        datatype=["str", "str", "number", "html"],
-                        interactive=False,
-                        elem_classes="apple-table",
-                        row_count=(0, "dynamic"),
-                        wrap=True
+                    queue_table = gr.HTML(
+                        value=_update_status_table([], "Queued"),
+                        elem_classes="apple-table"
                     )
                     
                     gr.HTML('''
@@ -1247,7 +1322,7 @@ def create_ui():
         btn_clear.click(_clear_form, inputs=None, outputs=[study_name, study_desc, files_all, files_folder])
         
         def _clear_all():
-            return [], []
+            return [], _update_status_table([], "Queued")
         
         # Добавляем кнопку очистки очереди (скрытая функциональность)
         with gr.Row(visible=False):
