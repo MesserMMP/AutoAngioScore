@@ -69,3 +69,7 @@ logs/
 *.bak
 *.old
 *~
+
+# Tests
+.env.test
+test_data/
