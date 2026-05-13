@@ -17,10 +17,10 @@ class Study(Base):
     __tablename__ = 'studies'
     
     id = Column(Integer, primary_key=True, autoincrement=True)
-    study_id = Column(String(255), nullable=False, unique=True, index=True)  # Внешний ID
+    study_id = Column(String(255), nullable=False, index=True)  # Внешний ID (больше не уникален для дубликатов)
     description = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
     
     # Связи
     dicom_files = relationship("DicomFile", back_populates="study", cascade="all, delete-orphan")
@@ -53,14 +53,13 @@ class DicomFile(Base):
     instance_number = Column(Integer, nullable=True)
     artery_classification = Column(String(20), nullable=True)  # 'left', 'right', 'other'
     artery_probability = Column(Float, nullable=True)
-    created_at = Column(DateTime, default=datetime.utcnow)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     
     # Связи
     study = relationship("Study", back_populates="dicom_files")
     
     __table_args__ = (
         Index('idx_study_series', 'study_id', 'series_uid'),
-        UniqueConstraint('study_id', 'file_path', name='uq_study_file'),
     )
     
     def to_dict(self) -> dict:
@@ -80,6 +79,7 @@ class InferenceResult(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     study_id = Column(Integer, ForeignKey('studies.id', ondelete='CASCADE'), nullable=False)
     inference_date = Column(DateTime, default=datetime.utcnow, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)  # Когда запись добавлена в БД
     
     # Основные результаты
     left_score = Column(Float, nullable=False, default=0.0)

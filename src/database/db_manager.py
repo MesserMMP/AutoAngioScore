@@ -144,14 +144,9 @@ class DatabaseManager:
     # ========== CRUD for Studies ==========
     
     def create_study(self, study_id: str, description: str = "") -> Optional[Study]:
-        """Создать новое исследование"""
+        """Создать новое исследование (допускаются дубликаты study_id)"""
         with self.get_session() as session:
             try:
-                existing = session.query(Study).filter(Study.study_id == study_id).first()
-                if existing:
-                    session.refresh(existing)
-                    return existing
-                
                 study = Study(
                     study_id=study_id,
                     description=description
@@ -159,6 +154,7 @@ class DatabaseManager:
                 session.add(study)
                 session.flush()
                 session.refresh(study)
+                print(f"✅ Study created: {study_id} (internal id: {study.id})")
                 return study
             except SQLAlchemyError as e:
                 print(f"❌ Error creating study: {e}")
@@ -184,7 +180,7 @@ class DatabaseManager:
     def add_dicom_file(self, study_id: int, file_path: str, file_name: str, 
                        series_uid: str = None, artery_class: str = None, 
                        artery_prob: float = None, **metadata) -> Optional[DicomFile]:
-        """Добавить DICOM файл"""
+        """Добавить DICOM файл (допускаются дубликаты, новая запись каждый раз)"""
         with self.get_session() as session:
             try:
                 study_pk = self._coerce_study_id(study_id)
@@ -205,9 +201,10 @@ class DatabaseManager:
                 session.add(dicom_file)
                 session.flush()
                 session.refresh(dicom_file)
+                print(f"✅ DICOM file added: {file_name} (study_id: {study_pk}, db_id: {dicom_file.id})")
                 return dicom_file
             except SQLAlchemyError as e:
-                print(f"❌ Error adding DICOM file: {e}")
+                print(f"❌ Error adding DICOM file '{file_name}': {e}")
                 return None
     
     # ========== CRUD for Inference Results ==========
@@ -272,7 +269,10 @@ class DatabaseManager:
                 
                 session.flush()
                 session.refresh(inference_result)
-                print(f"✅ Inference result saved for study {study.study_id}")
+                print(f"✅ Inference result saved for study '{study.study_id}' (internal id: {study_pk}, result_id: {inference_result.id})")
+                print(f"   Scores: left={left_data.get('mean', 0):.3f}, right={right_data.get('mean', 0):.3f}, total={total_score:.3f}")
+                print(f"   Files: left={left_data.get('n_files', 0)}, right={right_data.get('n_files', 0)}, other={len(other_data)}")
+                print(f"   Risk: {'HIGH ⚠️' if inference_result.is_high_risk else 'LOW ✅'}")
                 return inference_result
                 
             except SQLAlchemyError as e:
