@@ -8,6 +8,7 @@
 ![Gradio](https://img.shields.io/badge/Gradio-4.x-orange)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15-blue)
 ![Docker](https://img.shields.io/badge/Docker-20.10-blue)
+![Tests](https://img.shields.io/badge/tests-61%20passed-brightgreen)
 
 **Веб-приложение для автоматической оценки степени коронарного поражения по видеозаписям коронарной ангиографии**
 
@@ -59,6 +60,48 @@ python app.py
 ```
 
 
+## 🧪 Тестирование
+
+Проект включает **61 тест**, покрывающий все ключевые компоненты:
+
+| Модуль | Тесты | Описание |
+|--------|-------|----------|
+| `test_artery_cls.py` | 3 | Классификация артерий, пороги 0.10/0.90 |
+| `test_database.py` | 9 | PostgreSQL модели и менеджер БД |
+| `test_e2e.py` | 3 | Сквозные сценарии работы |
+| `test_files.py` | 12 | Валидация DICOM, загрузка файлов |
+| `test_inference.py` | 12 | ML инференс, сортировка, фильтрация |
+| `test_queue.py` | 10 | Очередь исследований, статусные бейджи |
+| `test_real_inference.py` | 4 | Тесты с реальными DICOM (моки при отсутствии) |
+| `test_report.py` | 4 | Создание JSON отчётов |
+| `test_results.py` | 7 | HTML форматирование результатов |
+
+### Запуск тестов
+
+```bash
+# Все тесты (если не настроен .env.test - с моками)
+pytest tests/ -v
+
+# С покрытием кода
+pytest tests/ --cov=src --cov-report=term
+
+# Только быстрые тесты
+pytest tests/ --ignore=tests/test_real_inference.py -v
+```
+
+### Конфигурация реальных тестов
+
+Создайте файл `.env.test` в корне проекта:
+
+```env
+TEST_DICOM_PATH=/path/to/your/patient.dcm
+TEST_DICOM_DIR=/path/to/your/study/folder
+```
+
+При наличии реальных файлов тесты выполняют настоящий инференс.  
+При отсутствии — используются моки, тесты проходят.
+
+
 ## 🖥️ Пользовательский интерфейс
 
 ### Компактное отображение результатов
@@ -85,7 +128,9 @@ syntax-video-infer/
 ├── docker-compose.yml              # Оркестрация PostgreSQL и приложения
 ├── Dockerfile                      # Сборка образа
 ├── requirements.txt                # Зависимости Python
+├── pytest.ini                      # Конфигурация тестов
 ├── .env                            # Переменные окружения (БД)
+├── .env.test                       # Настройки для тестов с реальными DICOM
 ├── configs/
 │   └── default.yaml                # Конфигурация моделей и порогов
 ├── src/
@@ -98,6 +143,17 @@ syntax-video-infer/
 │   └── database/                   # Модуль PostgreSQL
 │       ├── models.py               # SQLAlchemy-модели
 │       └── db_manager.py           # CRUD операции
+├── tests/                          # Тесты (61 тест)
+│   ├── conftest.py                 # Фикстуры и моки
+│   ├── test_artery_cls.py
+│   ├── test_database.py
+│   ├── test_e2e.py
+│   ├── test_files.py
+│   ├── test_inference.py
+│   ├── test_queue.py
+│   ├── test_real_inference.py
+│   ├── test_report.py
+│   └── test_results.py
 ├── assets/
 │   └── logo.png                    # Логотип приложения (если есть)
 └── screenshots/                    # Скриншоты интерфейса
@@ -153,12 +209,12 @@ DB_PASSWORD=your_password
 | `artery_scores` | Оценки каждой модели ансамбля |
 
 
-## Внешние ресурсы
+## 🔗 Внешние ресурсы
 
 - [Датасет](https://huggingface.co/datasets/MesserMMP/coronary-angiography-syntax) — коронарная ангиография с SYNTAX аннотациями
 - [Веса моделей](https://huggingface.co/MesserMMP/syntax-video-weights) — обученные ансамбли
 - [Демо-пространство](https://huggingface.co/spaces/MesserMMP/syntax-video-infer) — интерактивная демонстрация
-- [Обучение моделей](https://huggingface.co/MesserMMP/coronary-syntax-prediction) - код для дальнейшего обучения моделей
+- [Обучение моделей](https://huggingface.co/MesserMMP/coronary-syntax-prediction) — код для дальнейшего обучения моделей
 
 
 ## 📄 Лицензия
