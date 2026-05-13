@@ -12,15 +12,14 @@ import pydicom
 
 from src.syntax_pred.config import CFG
 from src.syntax_pred.infer import Study, run_inference
-from src.database.db_manager import get_db_manager, init_database
-# Добавить после существующих импортов
+from src.database.db_manager import get_db_manager
+from src.syntax_pred.infer import extract_dicom_metadata
 import time
 from sqlalchemy import text
 
+
 def wait_for_database(max_retries=30, delay=2):
     """Ожидание готовности PostgreSQL"""
-    from src.database.db_manager import get_db_manager
-    
     print("\n" + "="*50)
     print("🔍 Проверка подключения к PostgreSQL...")
     print("="*50)
@@ -38,6 +37,7 @@ def wait_for_database(max_retries=30, delay=2):
     
     print("⚠️ PostgreSQL не доступен, продолжаем без сохранения в БД")
     return False
+
 
 # ==================== КОНФИГУРАЦИЯ ДИЗАЙНА ====================
 APPLE_STYLE_CSS = """
@@ -1258,10 +1258,79 @@ def create_ui():
             return _update_status_table(studies, "Running")
         
         def _run_infer(studies):
+            start_time = time.time()
+            
             study_objs = []
             for s in (studies or []):
                 study_objs.append(Study(name=s["name"], description=s.get("description", ""), files=s["files"]))
+            
             result = run_inference(study_objs)
+            duration_ms = (time.time() - start_time) * 1000
+            result['duration_ms'] = duration_ms
+            
+            # ========== СОХРАНЕНИЕ В БАЗУ ДАННЫХ ==========
+            db_manager = get_db_manager()
+            if db_manager.check_connection():
+                try:
+                    for idx, study_data in enumerate(studies):
+                        study_name_val = study_data.get("name", f"Study_{idx}")
+                        
+                        # Получаем ORM-запись исследования и работаем уже с внутренним PK.
+                        study_record = db_manager.create_study(
+                            study_id=study_name_val,
+                            description=study_data.get("description", "")
+                        )
+                        study_db_id = study_record.id if study_record else None
+                        
+                        if study_db_id and idx < len(result.get('studies', [])):
+                            study_result = result['studies'][idx]
+                            
+                            # Сохраняем DICOM файлы
+                            for file_info in study_result.get('left', {}).get('files', []):
+                                file_path = file_info.get('path', '')
+                                metadata = extract_dicom_metadata(file_path)
+                                db_manager.add_dicom_file(
+                                    study_id=study_db_id,
+                                    file_path=file_path,
+                                    file_name=os.path.basename(file_path),
+                                    artery_class='left',
+                                    artery_prob=file_info.get('artery_prob', 0.0),
+                                    **metadata
+                                )
+                            
+                            for file_info in study_result.get('right', {}).get('files', []):
+                                file_path = file_info.get('path', '')
+                                metadata = extract_dicom_metadata(file_path)
+                                db_manager.add_dicom_file(
+                                    study_id=study_db_id,
+                                    file_path=file_path,
+                                    file_name=os.path.basename(file_path),
+                                    artery_class='right',
+                                    artery_prob=file_info.get('artery_prob', 0.0),
+                                    **metadata
+                                )
+                            
+                            for file_info in study_result.get('other', []):
+                                file_path = file_info.get('path', '')
+                                metadata = extract_dicom_metadata(file_path)
+                                db_manager.add_dicom_file(
+                                    study_id=study_db_id,
+                                    file_path=file_path,
+                                    file_name=os.path.basename(file_path),
+                                    artery_class='other',
+                                    artery_prob=file_info.get('artery_prob', 0.0),
+                                    **metadata
+                                )
+                            
+                            # Сохраняем результат
+                            db_manager.save_inference_result(study_db_id, study_result)
+                    
+                    print("✅ Results saved to PostgreSQL database")
+                except Exception as e:
+                    print(f"⚠️ Warning: Could not save to database: {e}")
+            else:
+                print("⚠️ No database connection, results not saved")
+            
             report_path = _build_report_file(result)
             return result, report_path
         
@@ -1292,7 +1361,6 @@ if __name__ == "__main__":
     # Ждём и инициализируем базу данных
     if wait_for_database():
         try:
-            from src.database.db_manager import get_db_manager
             db_manager = get_db_manager()
             db_manager.init_db_if_not_exists()
             print("✅ База данных инициализирована")

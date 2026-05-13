@@ -10,17 +10,16 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from sqlalchemy import text
 from src.database.db_manager import DatabaseManager
 
-def wait_for_db(max_retries=30, delay=2):
+def wait_for_db(max_retries=10, delay=2):
     """Ожидание готовности PostgreSQL"""
-    db_manager = DatabaseManager()
+    db_manager = DatabaseManager(auto_init=False)
     
     for attempt in range(max_retries):
         try:
             with db_manager.get_session() as session:
-                # Используем text() для raw SQL
                 result = session.execute(text("SELECT 1"))
                 if result.scalar() == 1:
-                    print("✅ Database is ready!")
+                    print("✅ Database connection established!")
                     return True
         except Exception as e:
             print(f"⏳ Waiting for database... (attempt {attempt + 1}/{max_retries})")
@@ -32,18 +31,19 @@ def wait_for_db(max_retries=30, delay=2):
 
 def main():
     print("🚀 Initializing AutoAngioScore Database...")
+    print("=" * 50)
     
     # Wait for DB to be ready
     if not wait_for_db():
-        print("❌ Could not connect to database. Is Docker running?")
-        print("   Run: docker-compose up -d")
+        print("❌ Could not connect to database.")
+        print("   Make sure PostgreSQL is running and .env is configured correctly.")
         sys.exit(1)
     
-    db_manager = DatabaseManager()
+    db_manager = DatabaseManager(auto_init=False)
     
     try:
-        # Create all tables
-        db_manager.init_db(drop_first=False)
+        # Create all tables using init_db_if_not_exists
+        db_manager.init_db_if_not_exists()
         print("✅ Database tables created successfully!")
         
         # Test connection and show version
@@ -61,15 +61,18 @@ def main():
             """))
             tables = [row[0] for row in result.fetchall()]
             if tables:
-                print(f"📋 Created tables: {', '.join(tables)}")
+                print(f"📋 Existing tables: {', '.join(tables)}")
             else:
-                print("📋 No tables found (they will be created when app runs)")
+                print("📋 No tables found")
             
     except Exception as e:
         print(f"❌ Error initializing database: {e}")
         import traceback
         traceback.print_exc()
         sys.exit(1)
+    
+    print("\n✅ Database initialization complete!")
+    print("=" * 50)
 
 if __name__ == "__main__":
     main()

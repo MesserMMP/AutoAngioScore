@@ -2,7 +2,7 @@
 
 # ===== General =====
 seed: 42
-device: auto                 # 'cpu' | 'cuda' | 'mps' | 'auto'
+device: cpu                 # 'cpu' | 'cuda' | 'mps' | 'auto'
 precision: bf16              # 'bf16' | 'fp16' | 'fp32'
 
 # Video clip packing for SYNTAX inference

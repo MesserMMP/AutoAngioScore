@@ -37,7 +37,12 @@ class DatabaseManager:
             pool_recycle=3600,
             echo=False  # Set to True for SQL debugging
         )
-        self.SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=self.engine)
+        self.SessionLocal = sessionmaker(
+            autocommit=False,
+            autoflush=False,
+            expire_on_commit=False,
+            bind=self.engine,
+        )
         
         if auto_init:
             self.init_db_if_not_exists()
@@ -73,19 +78,24 @@ class DatabaseManager:
     def init_db_if_not_exists(self, drop_first: bool = False):
         """Инициализация таблиц БД, если они не существуют"""
         try:
-            # Проверяем, есть ли уже таблицы
             inspector = inspect(self.engine)
             existing_tables = inspector.get_table_names()
-            
+
+            if drop_first:
+                Base.metadata.drop_all(bind=self.engine)
+                existing_tables = []
+
+            expected_tables = sorted(Base.metadata.tables.keys())
+            missing_tables = [table for table in expected_tables if table not in existing_tables]
+
             if existing_tables:
-                print(f"✅ Database already initialized. Existing tables: {', '.join(existing_tables)}")
-                return
-            
-            # Создаём таблицы
+                print(f"ℹ️ Existing tables: {', '.join(sorted(existing_tables))}")
+            if missing_tables:
+                print(f"ℹ️ Missing tables will be created: {', '.join(missing_tables)}")
+
             Base.metadata.create_all(bind=self.engine)
             print("✅ Database tables created successfully!")
-            
-            # Выводим список созданных таблиц
+
             inspector = inspect(self.engine)
             tables = inspector.get_table_names()
             print(f"📋 Created tables: {', '.join(tables)}")
@@ -114,6 +124,22 @@ class DatabaseManager:
             raise e
         finally:
             session.close()
+
+    def _coerce_study_id(self, study_or_id: Any) -> Optional[int]:
+        """Нормализовать входной study_id до целого числа."""
+        if isinstance(study_or_id, Study):
+            return study_or_id.id
+        if isinstance(study_or_id, int):
+            return study_or_id
+        if hasattr(study_or_id, "id"):
+            value = getattr(study_or_id, "id")
+            return int(value) if value is not None else None
+        return None
+
+    def _filter_model_kwargs(self, model, payload: Dict[str, Any]) -> Dict[str, Any]:
+        """Оставить только поля, которые реально есть в модели."""
+        valid_columns = set(inspect(model).mapper.columns.keys())
+        return {key: value for key, value in payload.items() if key in valid_columns}
     
     # ========== CRUD for Studies ==========
     
@@ -123,6 +149,7 @@ class DatabaseManager:
             try:
                 existing = session.query(Study).filter(Study.study_id == study_id).first()
                 if existing:
+                    session.refresh(existing)
                     return existing
                 
                 study = Study(
@@ -131,6 +158,7 @@ class DatabaseManager:
                 )
                 session.add(study)
                 session.flush()
+                session.refresh(study)
                 return study
             except SQLAlchemyError as e:
                 print(f"❌ Error creating study: {e}")
@@ -159,17 +187,24 @@ class DatabaseManager:
         """Добавить DICOM файл"""
         with self.get_session() as session:
             try:
+                study_pk = self._coerce_study_id(study_id)
+                if study_pk is None:
+                    print(f"❌ Invalid study_id for DICOM save: {study_id!r}")
+                    return None
+
+                payload = self._filter_model_kwargs(DicomFile, metadata)
                 dicom_file = DicomFile(
-                    study_id=study_id,
+                    study_id=study_pk,
                     file_path=file_path,
                     file_name=file_name,
                     series_uid=series_uid,
                     artery_classification=artery_class,
                     artery_probability=artery_prob,
-                    **metadata
+                    **payload
                 )
                 session.add(dicom_file)
                 session.flush()
+                session.refresh(dicom_file)
                 return dicom_file
             except SQLAlchemyError as e:
                 print(f"❌ Error adding DICOM file: {e}")
@@ -181,9 +216,14 @@ class DatabaseManager:
         """Сохранить результат инференса"""
         with self.get_session() as session:
             try:
-                study = session.query(Study).filter(Study.id == study_id).first()
+                study_pk = self._coerce_study_id(study_id)
+                if study_pk is None:
+                    print(f"❌ Invalid study_id for inference save: {study_id!r}")
+                    return None
+
+                study = session.query(Study).filter(Study.id == study_pk).first()
                 if not study:
-                    print(f"❌ Study with id {study_id} not found")
+                    print(f"❌ Study with id {study_pk} not found")
                     return None
                 
                 left_data = result_data.get('left', {})
@@ -195,7 +235,7 @@ class DatabaseManager:
                 threshold = 22.0
                 
                 inference_result = InferenceResult(
-                    study_id=study_id,
+                    study_id=study_pk,
                     left_score=left_data.get('mean', 0.0),
                     right_score=right_data.get('mean', 0.0),
                     total_score=total_score,
@@ -231,6 +271,7 @@ class DatabaseManager:
                     session.add(artery_score)
                 
                 session.flush()
+                session.refresh(inference_result)
                 print(f"✅ Inference result saved for study {study.study_id}")
                 return inference_result
                 
