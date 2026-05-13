@@ -2,7 +2,7 @@
 
 # ===== General =====
 seed: 42
-device: cpu                 # 'cpu' | 'cuda' | 'mps' | 'auto'
+device: auto                 # 'cpu' | 'cuda' | 'mps' | 'auto'
 precision: bf16              # 'bf16' | 'fp16' | 'fp32'
 
 # Video clip packing for SYNTAX inference
@@ -45,7 +45,7 @@ weights_repo: "MesserMMP/syntax-video-weights"
 # ===== Artery classifier (do NOT change preprocessing; keep identical to training) =====
 classifier:
   # path to Lightning/pt weights; must exist in the runtime
-  weights: "assets/r3d_art.pt"
+  weights: "weights/classifier/r3d_art.pt"
   # subdir in weights_repo
   hf_subdir: "classifier"
 

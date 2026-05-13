@@ -1,4 +1,3 @@
-# src/syntax_pred/artery_cls.py
 from __future__ import annotations
 from typing import List, Dict, Any
 import os
@@ -12,28 +11,43 @@ from torchvision.transforms._transforms_video import ToTensorVideo
 from pytorchvideo.transforms import Normalize
 
 from .config import CFG, DEVICE
-from .hf_weights import fetch_classifier_weight  # ← добавили импорт
+from .hf_weights import fetch_classifier_weight
 
 _ARTERY_MODEL: nn.Module | None = None
 
 def _resolve_classifier_weights_path() -> str:
     """
     1) Берём CFG.classifier.weights, если файл существует.
-    2) Иначе — скачиваем из HF-репозитория (ENV WEIGHTS_REPO или CFG.weights_repo)
-       из подпапки CFG.classifier.hf_subdir (по умолчанию 'classifier').
+    2) Иначе — ищем в weights/classifier/
+    3) Иначе — скачиваем из HF-репозитория
     """
     local_path = str(getattr(CFG.classifier, "weights", "") or "").strip()
+    
+    # Проверяем путь из конфига
     if local_path and os.path.isfile(local_path):
         return local_path
+    
+    # Проверяем стандартную папку weights/classifier/
+    default_path = "weights/classifier/r3d_art.pt"
+    if os.path.isfile(default_path):
+        print(f"[КЛАССИФИКАТОР] Загрузка весов из {default_path}")
+        return default_path
 
+    # Если нет локально — скачиваем из HF
     repo_id = os.environ.get("WEIGHTS_REPO", getattr(CFG, "weights_repo", "") or "")
-    subdir  = str(getattr(CFG.classifier, "hf_subdir", "classifier"))
+    subdir = str(getattr(CFG.classifier, "hf_subdir", "classifier"))
     if repo_id:
         pulled = fetch_classifier_weight(repo_id=repo_id, subdir=subdir)
         if pulled and os.path.isfile(pulled):
-            return pulled
+            # Сохраняем в weights/classifier/ для следующих запусков
+            import shutil
+            os.makedirs("weights/classifier", exist_ok=True)
+            target_path = "weights/classifier/r3d_art.pt"
+            shutil.copy2(pulled, target_path)
+            print(f"[КЛАССИФИКАТОР] Веса скопированы в {target_path}")
+            return target_path
 
-    # не нашли — вернём что есть (вызовущий код выбросит понятную ошибку)
+    # не нашли — вернём что есть (вызывающий код выбросит понятную ошибку)
     return local_path
 
 def _load_artery_model() -> nn.Module:
@@ -44,9 +58,9 @@ def _load_artery_model() -> nn.Module:
     weights_path = _resolve_classifier_weights_path()
     if not weights_path or not os.path.exists(weights_path):
         raise FileNotFoundError(
-            f"Classifier weights not found. "
-            f"Set a valid path in configs/default.yaml: classifier.weights "
-            f"or ensure HF repo '{getattr(CFG, 'weights_repo', '')}' has '{getattr(CFG.classifier, 'hf_subdir', 'classifier')}/*.pt|*.ckpt'."
+            f"Веса классификатора не найдены. "
+            f"Укажите корректный путь в configs/default.yaml: classifier.weights "
+            f"или убедитесь, что в HF репозитории '{getattr(CFG, 'weights_repo', '')}' есть '{getattr(CFG.classifier, 'hf_subdir', 'classifier')}/*.pt|*.ckpt'."
         )
 
     model = tvmv.r3d_18(weights=None)
@@ -62,7 +76,7 @@ def _load_artery_model() -> nn.Module:
 
     load_result = model.load_state_dict(model_sd, strict=False)
     if load_result.missing_keys or load_result.unexpected_keys:
-        print("[classifier] load warnings:", load_result)
+        print("[КЛАССИФИКАТОР] предупреждения при загрузке:", load_result)
 
     model.to(DEVICE).eval()
     _ARTERY_MODEL = model

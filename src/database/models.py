@@ -1,4 +1,4 @@
-"""SQLAlchemy models for PostgreSQL database"""
+"""Модели SQLAlchemy для PostgreSQL"""
 
 from datetime import datetime
 from typing import Optional, List

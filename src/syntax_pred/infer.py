@@ -1,5 +1,3 @@
-# src/syntax_pred/infer.py — инференс SYNTAX (среднее по моделям), сортировка, Study
-
 from __future__ import annotations
 from dataclasses import dataclass
 from typing import List, Dict, Any, Tuple
@@ -33,11 +31,11 @@ def extract_dicom_metadata(file_path: str) -> Dict[str, Any]:
             "instance_number": getattr(ds, "InstanceNumber", None),
         }
     except Exception as e:
-        print(f"Warning: Could not extract metadata from {file_path}: {e}")
+        print(f"Предупреждение: не удалось извлечь метаданные из {file_path}: {e}")
         return {}
 
 
-# -------- Data structure --------
+# -------- Структуры данных --------
 @dataclass
 class Study:
     name: str
@@ -45,7 +43,7 @@ class Study:
     files: List[str]
 
 
-# -------- Weights & model --------
+# -------- Веса и модель --------
 def build_model(weight_path: str) -> SyntaxLightningModule:
     m = SyntaxLightningModule(
         num_classes=CFG.num_classes,
@@ -88,7 +86,7 @@ def list_weights() -> Tuple[List[str], List[str]]:
     return left, right
 
 
-# -------- Глобальные модели, инициализируемые при импорте --------
+# -------- Глобальные модели (инициализация при импорте) --------
 _LEFT_MODEL_PATHS, _RIGHT_MODEL_PATHS = list_weights()
 _LEFT_MODELS: List[SyntaxLightningModule] = []
 _RIGHT_MODELS: List[SyntaxLightningModule] = []
@@ -97,19 +95,19 @@ for wp in _LEFT_MODEL_PATHS:
     try:
         _LEFT_MODELS.append(build_model(wp))
     except Exception as e:
-        print(f"[WARN] failed to init LEFT model {wp}: {e}")
+        print(f"[ПРЕДУПРЕЖДЕНИЕ] не удалось инициализировать модель LEFT {wp}: {e}")
 
 for wp in _RIGHT_MODEL_PATHS:
     try:
         _RIGHT_MODELS.append(build_model(wp))
     except Exception as e:
-        print(f"[WARN] failed to init RIGHT model {wp}: {e}")
+        print(f"[ПРЕДУПРЕЖДЕНИЕ] не удалось инициализировать модель RIGHT {wp}: {e}")
 
 if not _LEFT_MODELS and not _RIGHT_MODELS:
-    print("[ERROR] No models initialized: check weights/ and HF repo configuration.")
+    print("[ОШИБКА] Модели не инициализированы: проверьте weights/ и конфигурацию HF.")
 
 
-# -------- Stable sort --------
+# -------- Стабильная сортировка --------
 def _stable_sort_paths(paths: List[str]) -> List[str]:
     """
     Сортировка в духе старого пайплайна:
@@ -139,7 +137,7 @@ def _filter_dicom_paths(paths: List[str]) -> List[str]:
     return out
 
 
-# -------- Packing one side --------
+# -------- Подготовка одной стороны --------
 def _pack_study_side_to_tensor(
     file_paths: List[str],
     frames_per_clip: int,
@@ -187,7 +185,7 @@ def _score_side_by_models(
             per_model_scores.append(score)
             used_models.append(os.path.basename(wp))
         except Exception as e:
-            print(f"[WARN] model {wp} failed: {e}")
+            print(f"[ПРЕДУПРЕЖДЕНИЕ] модель {wp} не выполнилась: {e}")
 
     mean_score = float(np.mean(per_model_scores)) if per_model_scores else 0.0
     return {
@@ -197,12 +195,12 @@ def _score_side_by_models(
     }
 
 
-# -------- Top-level inference --------
+# -------- Основной инференс --------
 def run_inference(studies: List[Study]) -> Dict[str, Any]:
     if not _LEFT_MODEL_PATHS and not _RIGHT_MODEL_PATHS:
-        return {"error": "No weights found. Upload to weights/left and weights/right."}
+        return {"error": "Веса не найдены. Загрузите файлы в weights/left и weights/right."}
     if not _LEFT_MODELS and not _RIGHT_MODELS:
-        return {"error": "Models failed to initialize. See logs."}
+        return {"error": "Модели не инициализировались. См. логи."}
 
     results = {"studies": []}
     thr = CFG.thresholds.both

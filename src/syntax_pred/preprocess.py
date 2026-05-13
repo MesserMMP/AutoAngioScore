@@ -1,5 +1,3 @@
-# src/syntax_pred/preprocess.py — чтение DICOM и тестовый пайплайн трансформаций
-
 from __future__ import annotations
 from typing import Tuple
 import os

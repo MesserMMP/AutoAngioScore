@@ -1,4 +1,3 @@
-# src/syntax_pred/model.py — removed sigma & yulie, robust auto-loading, backward-compatible **kwargs
 from __future__ import annotations
 from typing import Any, Dict, List, Optional, Tuple
 import torch

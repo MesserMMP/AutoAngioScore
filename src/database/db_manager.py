@@ -1,4 +1,4 @@
-"""Database manager for AutoAngioScore with auto-initialization"""
+"""Менеджер БД AutoAngioScore с автоинициализацией"""
 
 import os
 import time
@@ -8,12 +8,13 @@ from contextlib import contextmanager
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker, Session
 from sqlalchemy.exc import SQLAlchemyError, OperationalError
+
 from dotenv import load_dotenv
 from sqlalchemy import inspect
 
 from .models import Base, Study, DicomFile, InferenceResult, ArteryScore
 
-# Load environment variables
+# Загружаем переменные окружения
 load_dotenv()
 
 class DatabaseManager:
@@ -35,7 +36,7 @@ class DatabaseManager:
             db_url,
             pool_pre_ping=True,
             pool_recycle=3600,
-            echo=False  # Set to True for SQL debugging
+            echo=False  # Для отладки SQL включите True
         )
         self.SessionLocal = sessionmaker(
             autocommit=False,
@@ -63,16 +64,16 @@ class DatabaseManager:
             try:
                 with self.engine.connect() as conn:
                     conn.execute(text("SELECT 1"))
-                    print(f"✅ Database connection established (attempt {attempt + 1})")
+                    print(f"✅ Подключение к БД установлено (попытка {attempt + 1})")
                     return True
             except OperationalError as e:
-                print(f"⏳ Waiting for database... (attempt {attempt + 1}/{max_retries})")
+                print(f"⏳ Ожидание БД... (попытка {attempt + 1}/{max_retries})")
                 time.sleep(delay)
             except Exception as e:
-                print(f"⚠️ Unexpected error: {e}")
+                print(f"⚠️ Неожиданная ошибка: {e}")
                 time.sleep(delay)
         
-        print("❌ Could not connect to database after maximum retries")
+        print("❌ Не удалось подключиться к БД после всех попыток")
         return False
     
     def init_db_if_not_exists(self, drop_first: bool = False):
@@ -89,19 +90,19 @@ class DatabaseManager:
             missing_tables = [table for table in expected_tables if table not in existing_tables]
 
             if existing_tables:
-                print(f"ℹ️ Existing tables: {', '.join(sorted(existing_tables))}")
+                print(f"ℹ️ Текущие таблицы: {', '.join(sorted(existing_tables))}")
             if missing_tables:
-                print(f"ℹ️ Missing tables will be created: {', '.join(missing_tables)}")
+                print(f"ℹ️ Будут созданы отсутствующие таблицы: {', '.join(missing_tables)}")
 
             Base.metadata.create_all(bind=self.engine)
-            print("✅ Database tables created successfully!")
+            print("✅ Таблицы БД успешно созданы!")
 
             inspector = inspect(self.engine)
             tables = inspector.get_table_names()
-            print(f"📋 Created tables: {', '.join(tables)}")
+            print(f"📋 Созданы таблицы: {', '.join(tables)}")
             
         except Exception as e:
-            print(f"⚠️ Warning: Could not initialize database: {e}")
+            print(f"⚠️ Предупреждение: не удалось инициализировать БД: {e}")
     
     def check_connection(self) -> bool:
         """Проверить соединение с БД"""
@@ -154,10 +155,10 @@ class DatabaseManager:
                 session.add(study)
                 session.flush()
                 session.refresh(study)
-                print(f"✅ Study created: {study_id} (internal id: {study.id})")
+                print(f"✅ Исследование создано: {study_id} (внутренний id: {study.id})")
                 return study
             except SQLAlchemyError as e:
-                print(f"❌ Error creating study: {e}")
+                print(f"❌ Ошибка создания исследования: {e}")
                 return None
     
     def get_study(self, study_id: str) -> Optional[Study]:
@@ -185,7 +186,7 @@ class DatabaseManager:
             try:
                 study_pk = self._coerce_study_id(study_id)
                 if study_pk is None:
-                    print(f"❌ Invalid study_id for DICOM save: {study_id!r}")
+                    print(f"❌ Некорректный study_id для сохранения DICOM: {study_id!r}")
                     return None
 
                 payload = self._filter_model_kwargs(DicomFile, metadata)
@@ -201,10 +202,10 @@ class DatabaseManager:
                 session.add(dicom_file)
                 session.flush()
                 session.refresh(dicom_file)
-                print(f"✅ DICOM file added: {file_name} (study_id: {study_pk}, db_id: {dicom_file.id})")
+                print(f"✅ DICOM файл сохранен: {file_name} (study_id: {study_pk}, db_id: {dicom_file.id})")
                 return dicom_file
             except SQLAlchemyError as e:
-                print(f"❌ Error adding DICOM file '{file_name}': {e}")
+                print(f"❌ Ошибка сохранения DICOM файла '{file_name}': {e}")
                 return None
     
     # ========== CRUD for Inference Results ==========
@@ -215,12 +216,12 @@ class DatabaseManager:
             try:
                 study_pk = self._coerce_study_id(study_id)
                 if study_pk is None:
-                    print(f"❌ Invalid study_id for inference save: {study_id!r}")
+                    print(f"❌ Некорректный study_id для сохранения результатов: {study_id!r}")
                     return None
 
                 study = session.query(Study).filter(Study.id == study_pk).first()
                 if not study:
-                    print(f"❌ Study with id {study_pk} not found")
+                    print(f"❌ Исследование с id {study_pk} не найдено")
                     return None
                 
                 left_data = result_data.get('left', {})
@@ -248,7 +249,7 @@ class DatabaseManager:
                 session.add(inference_result)
                 session.flush()
                 
-                # Add detailed artery scores
+                # Детальные оценки по моделям
                 for model_score in left_data.get('per_model', []):
                     artery_score = ArteryScore(
                         inference_result_id=inference_result.id,
@@ -257,7 +258,7 @@ class DatabaseManager:
                         score_value=model_score.get('score', 0.0)
                     )
                     session.add(artery_score)
-                
+
                 for model_score in right_data.get('per_model', []):
                     artery_score = ArteryScore(
                         inference_result_id=inference_result.id,
@@ -269,10 +270,10 @@ class DatabaseManager:
                 
                 session.flush()
                 session.refresh(inference_result)
-                print(f"✅ Inference result saved for study '{study.study_id}' (internal id: {study_pk}, result_id: {inference_result.id})")
-                print(f"   Scores: left={left_data.get('mean', 0):.3f}, right={right_data.get('mean', 0):.3f}, total={total_score:.3f}")
-                print(f"   Files: left={left_data.get('n_files', 0)}, right={right_data.get('n_files', 0)}, other={len(other_data)}")
-                print(f"   Risk: {'HIGH ⚠️' if inference_result.is_high_risk else 'LOW ✅'}")
+                print(f"✅ Результат инференса сохранен для исследования '{study.study_id}' (внутренний id: {study_pk}, id_результата: {inference_result.id})")
+                print(f"   Оценки: левая={left_data.get('mean', 0):.3f}, правая={right_data.get('mean', 0):.3f}, итого={total_score:.3f}")
+                print(f"   Файлы: левая={left_data.get('n_files', 0)}, правая={right_data.get('n_files', 0)}, other={len(other_data)}")
+                print(f"   Уровень риска: {'ВЫСОКИЙ ⚠️' if inference_result.is_high_risk else 'НИЗКИЙ ✅'}")
                 return inference_result
                 
             except SQLAlchemyError as e:

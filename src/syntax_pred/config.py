@@ -1,5 +1,3 @@
-# src/syntax_pred/config.py — единая конфигурация и устройство
-
 from omegaconf import OmegaConf
 from .utils import pick_device
 
