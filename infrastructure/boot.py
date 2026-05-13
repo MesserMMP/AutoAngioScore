@@ -3,14 +3,13 @@ import time
 
 from sqlalchemy import text
 
-from src.database.db_manager import get_db_manager
-from src.web.assets import LOGO_PATH
-from src.web.styles import APPLE_STYLE_CSS
-from src.web.ui import create_ui
+from infrastructure.database.db_manager import get_db_manager
+from presentation.assets import LOGO_PATH
+from presentation.styles import APPLE_STYLE_CSS
+from presentation.ui import create_ui
 
 
 def wait_for_database(max_retries: int = 30, delay: int = 2) -> bool:
-    """Ожидание готовности PostgreSQL."""
     print("\n" + "=" * 50)
     print("🔍 Проверка подключения к PostgreSQL...")
     print("=" * 50)
@@ -31,7 +30,6 @@ def wait_for_database(max_retries: int = 30, delay: int = 2) -> bool:
 
 
 def run_app() -> None:
-    """Запуск приложения AutoAngioScore."""
     favicon = LOGO_PATH if (LOGO_PATH and os.path.exists(LOGO_PATH)) else None
 
     if wait_for_database():

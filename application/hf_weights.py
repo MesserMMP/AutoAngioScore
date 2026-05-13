@@ -23,27 +23,8 @@ def fetch_weights(repo_id: str,
 def fetch_classifier_weight(repo_id: str,
                             subdir: str = "classifier",
                             file_patterns: Iterable[str] = ("*.pt", "*.ckpt")) -> str:
-    """
-    Скачивает веса классификатора из HF-репозитория в weights/classifier/.
-    Возвращает путь к файлу.
-    """
-    # Проверяем, есть ли уже локально
-    local_path = "weights/classifier/r3d_art.pt"
-    if os.path.isfile(local_path):
-        return local_path
-    
-    # Скачиваем из HF
     allow = [f"{subdir}/{p}" for p in file_patterns]
     cache_dir = snapshot_download(repo_id=repo_id, allow_patterns=allow)
     target_dir = os.path.join(cache_dir, subdir)
     files = _collect(target_dir, patterns=file_patterns) if os.path.isdir(target_dir) else []
-    
-    if files:
-        # Сохраняем в локальную папку weights/classifier/
-        os.makedirs("weights/classifier", exist_ok=True)
-        import shutil
-        shutil.copy2(files[0], local_path)
-        print(f"[HF] Веса классификатора сохранены в {local_path}")
-        return local_path
-    
-    return ""
+    return files[0] if files else ""

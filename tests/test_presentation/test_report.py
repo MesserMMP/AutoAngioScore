@@ -1,19 +1,13 @@
-"""Тесты создания JSON отчётов.
+"""Тесты создания JSON отчётов: пустых, с данными, с ошибками."""
 
-Проверяет:
-- Создание отчёта из пустого результата
-- Создание отчёта с данными
-- Формат имени файла отчёта
-- Сохранение ошибок в отчёт
-"""
 import os
 import json
 import pytest
-from src.web.report import build_report_file
+from presentation.report import build_report_file
 
 
 class TestReportBuilding:
-    
+
     def test_build_report_empty(self):
         result = {}
         file_path = build_report_file(result)
@@ -22,7 +16,7 @@ class TestReportBuilding:
             data = json.load(f)
         assert data == result
         os.unlink(file_path)
-    
+
     def test_build_report_with_data(self):
         result = {
             "studies": [
@@ -39,7 +33,7 @@ class TestReportBuilding:
             data = json.load(f)
         assert data["studies"][0]["study"] == "TEST-001"
         os.unlink(file_path)
-    
+
     def test_build_report_filename_format(self):
         result = {}
         file_path = build_report_file(result)
@@ -47,7 +41,7 @@ class TestReportBuilding:
         assert filename.startswith("autoangioscore_report_")
         assert filename.endswith(".json")
         os.unlink(file_path)
-    
+
     def test_build_report_with_error(self):
         result = {"error": "Test error message"}
         file_path = build_report_file(result)

@@ -14,6 +14,7 @@ from .preprocess import read_dicom_uint8, ensure_length_center_crop, test_like_t
 from .hf_weights import fetch_weights
 from .artery_cls import classify_artery
 
+
 def extract_dicom_metadata(file_path: str) -> Dict[str, Any]:
     """Извлечение метаданных из DICOM файла"""
     try:

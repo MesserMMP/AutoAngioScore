@@ -4,15 +4,14 @@ from typing import Any, Dict, List
 
 import gradio as gr
 
-from src.database.db_manager import get_db_manager
-from src.syntax_pred.infer import Study, run_inference, extract_dicom_metadata
+from infrastructure.database.db_manager import get_db_manager
+from application.infer import Study, run_inference, extract_dicom_metadata  # infer, а не inference
 
 from .assets import logo_html
 from .files import collect_input_paths
 from .queue import render_queue_table
 from .report import build_report_file
 from .results import format_results_html
-
 
 def create_ui() -> gr.Blocks:
     """Создание интерфейса в стиле Apple."""

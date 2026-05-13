@@ -1,27 +1,21 @@
-"""Тесты форматирования HTML результатов.
+"""Тесты HTML форматирования результатов: пустые, с ошибками, с риском, с файлами."""
 
-Проверяет:
-- Пустой результат и результат с ошибкой
-- Одно и несколько исследований
-- Высокий и низкий риск
-- Нераспознанные файлы и оценки моделей
-"""
 import pytest
-from src.web.results import format_results_html
+from presentation.results import format_results_html
 
 
 class TestResultsFormatting:
-    
+
     def test_empty_result(self):
         html = format_results_html({})
         assert "Результаты появятся после запуска анализа" in html
-    
+
     def test_error_result(self):
         result = {"error": "Тестовая ошибка"}
         html = format_results_html(result)
         assert "Ошибка" in html
         assert "Тестовая ошибка" in html
-    
+
     def test_single_study_result(self):
         result = {
             "studies": [{
@@ -39,7 +33,7 @@ class TestResultsFormatting:
         assert "Правая артерия" in html
         assert "Общий SYNTAX Score" in html
         assert "Низкий риск" in html
-    
+
     def test_multiple_studies_result(self):
         result = {
             "studies": [
@@ -66,7 +60,7 @@ class TestResultsFormatting:
         assert "TEST-002" in html
         assert "Низкий риск" in html
         assert "Высокий риск" in html
-    
+
     def test_high_risk_result(self):
         result = {
             "studies": [{
@@ -81,12 +75,12 @@ class TestResultsFormatting:
         html = format_results_html(result)
         assert "Высокий риск" in html
         assert "Рекомендовано вмешательство" in html
-    
+
     def test_result_with_other_files(self, mock_inference_result):
         html = format_results_html(mock_inference_result)
         assert "Нераспознанные файлы" in html
         assert "В серой зоне" in html
-    
+
     def test_result_with_model_scores(self, mock_inference_result):
         html = format_results_html(mock_inference_result)
         assert "SYNTAX Score по моделям" in html

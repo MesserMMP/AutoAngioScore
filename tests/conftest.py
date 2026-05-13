@@ -1,11 +1,5 @@
-"""Фикстуры для тестов AutoAngioScore.
+"""Фикстуры для тестов AutoAngioScore: временные директории, моки, тестовые данные."""
 
-Содержит:
-- Настройку путей для импорта модулей src
-- Загрузку переменных окружения из .env.test
-- Фикстуры для создания временных файлов, директорий
-- Моки для базы данных и результатов инференса
-"""
 import os
 import sys
 import pytest
@@ -17,7 +11,7 @@ from dotenv import load_dotenv
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from src.syntax_pred.infer import Study
+from application.infer import Study
 
 load_dotenv('.env.test')
 if not os.getenv('TEST_DICOM_PATH'):
@@ -76,7 +70,7 @@ def sample_studies_list(sample_dicom_files) -> List[Dict]:
             "files": sample_dicom_files
         },
         {
-            "name": "STUDY-002", 
+            "name": "STUDY-002",
             "description": "Второй пациент",
             "files": sample_dicom_files
         }

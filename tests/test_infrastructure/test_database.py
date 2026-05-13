@@ -1,34 +1,29 @@
-"""Тесты PostgreSQL.
+"""Тесты PostgreSQL: методы менеджера БД и SQLAlchemy модели."""
 
-Проверяет:
-- Наличие методов менеджера БД
-- Корректность SQLAlchemy моделей
-- Структуру возвращаемой статистики
-"""
 import pytest
 from unittest.mock import patch, MagicMock
-from src.database.db_manager import DatabaseManager
-from src.database.models import Study, DicomFile, InferenceResult
+from infrastructure.database.db_manager import DatabaseManager
+from infrastructure.database.models import Study, DicomFile, InferenceResult
 
 
 class TestDatabaseManager:
-    
+
     def test_connection_check(self):
         db_manager = DatabaseManager(auto_init=False)
         assert hasattr(db_manager, 'check_connection')
-    
+
     def test_create_study_method(self):
         db_manager = DatabaseManager(auto_init=False)
         assert hasattr(db_manager, 'create_study')
-    
+
     def test_save_inference_result_method(self):
         db_manager = DatabaseManager(auto_init=False)
         assert hasattr(db_manager, 'save_inference_result')
-    
+
     def test_get_statistics_method(self):
         db_manager = DatabaseManager(auto_init=False)
         assert hasattr(db_manager, 'get_statistics')
-    
+
     def test_get_statistics_returns_dict(self):
         db_manager = DatabaseManager(auto_init=False)
         stats = db_manager.get_statistics()
@@ -42,7 +37,7 @@ class TestDatabaseManager:
 
 
 class TestModels:
-    
+
     def test_study_model(self):
         study = Study(
             study_id="TEST-001",
@@ -53,7 +48,7 @@ class TestModels:
         assert hasattr(study, 'id')
         assert hasattr(study, 'created_at')
         assert hasattr(study, 'updated_at')
-    
+
     def test_dicom_file_model(self):
         dicom_file = DicomFile(
             study_id=1,
@@ -65,7 +60,7 @@ class TestModels:
         assert dicom_file.file_name == "test.dcm"
         assert dicom_file.artery_classification == "left"
         assert dicom_file.artery_probability == 0.95
-    
+
     def test_inference_result_model(self):
         result = InferenceResult(
             study_id=1,

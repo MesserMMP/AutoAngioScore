@@ -3,10 +3,6 @@ import glob, os
 import torch
 
 def pick_device(pref: str = "auto") -> torch.device:
-    """
-    Выбор устройства для вычислений: CUDA → MPS → CPU.
-    При явном указании pref возвращается соответствующее устройство.
-    """
     if pref == "auto":
         if torch.cuda.is_available():
             return torch.device("cuda")
@@ -16,10 +12,6 @@ def pick_device(pref: str = "auto") -> torch.device:
     return torch.device(pref)
 
 def discover_weights(dirpath: str) -> list[str]:
-    """
-    Поиск весов моделей по маскам *.pt и *.ckpt внутри указанной директории.
-    Возвращает отсортированный список путей.
-    """
     pats = [os.path.join(dirpath, "*.pt"), os.path.join(dirpath, "*.ckpt")]
     found = []
     for p in pats:

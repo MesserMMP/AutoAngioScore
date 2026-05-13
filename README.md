@@ -51,11 +51,35 @@ docker-compose up --build
 ### Локальная установка
 
 ```bash
+# 1. Клонирование репозитория
 git clone https://github.com/MesserMMP/syntax-video-infer.git
 cd syntax-video-infer
+
+# 2. Создание виртуального окружения
 python -m venv venv
 source venv/bin/activate  # Windows: venv\Scripts\activate
+
+# 3. Установка зависимостей
 pip install -r requirements.txt
+
+# 4. Запуск PostgreSQL (выберите один из способов)
+
+# Способ А: через Docker
+docker run --name postgres -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=autoangioscore -p 5432:5432 -d postgres:15
+
+# Способ Б: через локальную установку PostgreSQL
+# sudo apt install postgresql  # Ubuntu/Debian
+# brew install postgresql      # macOS
+# createdb autoangioscore
+
+# 5. Настройка .env файла
+echo "DB_HOST=localhost" > .env
+echo "DB_PORT=5432" >> .env
+echo "DB_NAME=autoangioscore" >> .env
+echo "DB_USER=postgres" >> .env
+echo "DB_PASSWORD=postgres" >> .env
+
+# 6. Запуск приложения
 python app.py
 ```
 
@@ -79,11 +103,11 @@ python app.py
 ### Запуск тестов
 
 ```bash
-# Все тесты (если не настроен .env.test - с моками)
+# Все тесты (если не настроен .env.test — с моками)
 pytest tests/ -v
 
 # С покрытием кода
-pytest tests/ --cov=src --cov-report=term
+pytest tests/ --cov=presentation --cov=application --cov=infrastructure --cov-report=term
 
 # Только быстрые тесты
 pytest tests/ --ignore=tests/test_real_inference.py -v
@@ -122,40 +146,66 @@ TEST_DICOM_DIR=/path/to/your/study/folder
 
 ## 📁 Структура проекта
 
+Проект организован по трёхуровневой архитектуре:
+
 ```
-syntax-video-infer/
-├── app.py                          # Точка входа, веб-интерфейс Gradio
+AutoAngioScore/
+├── app.py                          # Точка входа
 ├── docker-compose.yml              # Оркестрация PostgreSQL и приложения
 ├── Dockerfile                      # Сборка образа
 ├── requirements.txt                # Зависимости Python
 ├── pytest.ini                      # Конфигурация тестов
 ├── .env                            # Переменные окружения (БД)
 ├── .env.test                       # Настройки для тестов с реальными DICOM
+│
 ├── configs/
 │   └── default.yaml                # Конфигурация моделей и порогов
-├── src/
-│   ├── syntax_pred/                # ML-модули инференса
-│   │   ├── preprocess.py           # Чтение DICOM и трансформации
-│   │   ├── artery_cls.py           # Классификатор LCA/RCA
-│   │   ├── model.py                # Архитектура модели SYNTAX
-│   │   ├── infer.py                # Основной пайплайн инференса
-│   │   └── hf_weights.py           # Загрузка весов из Hugging Face
-│   └── database/                   # Модуль PostgreSQL
-│       ├── models.py               # SQLAlchemy-модели
+│
+├── presentation/                   # Слой представления (UI)
+│   ├── assets.py                   # Логотип, статика
+│   ├── styles.py                   # CSS стили
+│   ├── files.py                    # Валидация DICOM
+│   ├── queue.py                    # Очередь исследований
+│   ├── results.py                  # HTML-форматирование результатов
+│   ├── report.py                   # JSON-отчёты
+│   └── ui.py                       # Основной интерфейс Gradio
+│
+├── application/                    # Слой приложения (бизнес-логика)
+│   ├── infer.py                    # Оркестрация инференса
+│   ├── preprocess.py               # Предобработка DICOM
+│   ├── artery_cls.py               # Классификация артерий (пороги 0.10/0.90)
+│   ├── model.py                    # Архитектура нейросети
+│   ├── config.py                   # Загрузка конфигурации
+│   ├── utils.py                    # Утилиты (устройство, поиск весов)
+│   └── hf_weights.py               # Загрузка весов из Hugging Face
+│
+├── infrastructure/                 # Слой инфраструктуры
+│   ├── boot.py                     # Запуск и инициализация приложения
+│   └── database/                   # PostgreSQL
+│       ├── models.py               # SQLAlchemy модели
 │       └── db_manager.py           # CRUD операции
+│
+├── scripts/                        # Вспомогательные скрипты
+│   ├── init_db.py                  # Инициализация БД
+│   ├── check_db.py                 # Просмотр содержимого БД
+│   └── reset_db.py                 # Сброс БД
+│
 ├── tests/                          # Тесты (61 тест)
 │   ├── conftest.py                 # Фикстуры и моки
-│   ├── test_artery_cls.py
-│   ├── test_database.py
-│   ├── test_e2e.py
-│   ├── test_files.py
-│   ├── test_inference.py
-│   ├── test_queue.py
-│   ├── test_real_inference.py
-│   ├── test_report.py
-│   └── test_results.py
-├── assets/
+│   ├── test_presentation/          # Тесты UI
+│   ├── test_application/           # Тесты бизнес-логики
+│   ├── test_infrastructure/        # Тесты инфраструктуры
+│   ├── test_e2e.py                 # Сквозные тесты
+│   └── test_real_inference.py      # Тесты с реальными DICOM
+│
+├── weights/                        # Веса моделей
+│   ├── left/                       # 5 моделей для левой артерии
+│   ├── right/                      # 5 моделей для правой артерии
+│   └── classifier/                 # Классификатор LCA/RCA
+│
+├── assets/                         # Статические файлы
 │   └── logo.png                    # Логотип приложения (если есть)
+│
 └── screenshots/                    # Скриншоты интерфейса
     ├── ui_compact.png
     └── ui_detailed.png
@@ -208,6 +258,19 @@ DB_PASSWORD=your_password
 | `inference_results` | Результаты SYNTAX Score |
 | `artery_scores` | Оценки каждой модели ансамбля |
 
+### Управление базой данных
+
+```bash
+# Инициализация таблиц (автоматически при запуске)
+python app.py
+
+# Проверка содержимого БД
+python scripts/check_db.py
+
+# Полный сброс БД (удаление всех данных)
+python scripts/reset_db.py
+```
+
 
 ## 🔗 Внешние ресурсы
 
@@ -226,5 +289,3 @@ MIT License. Подробности в файле [LICENSE](LICENSE).
 
 **Разработчик:** Панасюк Михаил Михайлович (БПИ226, НИУ ВШЭ)  
 **Руководитель ВКР:** Савченко А. В.
-
-- Hugging Face: [@MesserMMP](https://huggingface.co/MesserMMP)
