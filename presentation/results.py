@@ -255,7 +255,7 @@ def format_results_html(result: Dict[str, Any]) -> str:
                 artery_prob = file_info.get("artery_prob", 0.0)
                 left_files_html += f'''
                     <div class="file-item">
-                        <span class="file-name">📄 {file_name[:50]}</span>
+                        <span class="file-name">📄 {file_name}</span>
                         <span class="file-prob" style="color: #06b6d4;">{artery_prob:.3f}</span>
                     </div>
                 '''
@@ -277,7 +277,7 @@ def format_results_html(result: Dict[str, Any]) -> str:
                 artery_prob = file_info.get("artery_prob", 0.0)
                 right_files_html += f'''
                     <div class="file-item">
-                        <span class="file-name">📄 {file_name[:50]}</span>
+                        <span class="file-name">📄 {file_name}</span>
                         <span class="file-prob" style="color: #8b5cf6;">{artery_prob:.3f}</span>
                     </div>
                 '''
@@ -313,7 +313,7 @@ def format_results_html(result: Dict[str, Any]) -> str:
                 other_files_html += f'''
                     <div class="other-file-item">
                         <div class="other-file-info">
-                            <span class="other-file-name">📄 {file_name[:50]}</span>
+                            <span class="other-file-name">📄 {file_name}</span>
                             <span class="other-file-status" style="color: {prob_color};">{prob_status}</span>
                         </div>
                         <div class="other-file-prob">
